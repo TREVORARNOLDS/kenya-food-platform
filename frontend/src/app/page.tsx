@@ -31,6 +31,9 @@ export default function Home() {
       <Link href="/prices" className="mt-3 inline-block text-blue-600 underline">
         Open the food price explorer →
       </Link>
+      <Link href="/trends" className="mt-1 block w-fit text-blue-600 underline">
+        Open price trends →
+      </Link>
 
       <div className="mt-6 rounded-lg border p-4">
         {error && <p className="text-red-600">Backend unreachable: {error}</p>}
