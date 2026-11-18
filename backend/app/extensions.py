@@ -8,9 +8,7 @@ POSTGIS_TABLES = {"spatial_ref_sys", "geometry_columns", "geography_columns"}
 
 
 def include_object(obj, name, type_, reflected, compare_to):
-    if type_ == "table" and name in POSTGIS_TABLES:
-        return False
-    return True
+    return not (type_ == "table" and name in POSTGIS_TABLES)
 
 
 db = SQLAlchemy()
