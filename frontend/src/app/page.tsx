@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type Health = {
@@ -27,6 +28,9 @@ export default function Home() {
         Kenya Food Security &amp; Market Intelligence
       </h1>
       <p className="mt-1 text-gray-500">System status</p>
+      <Link href="/prices" className="mt-3 inline-block text-blue-600 underline">
+        Open the food price explorer →
+      </Link>
 
       <div className="mt-6 rounded-lg border p-4">
         {error && <p className="text-red-600">Backend unreachable: {error}</p>}
