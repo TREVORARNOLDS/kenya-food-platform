@@ -29,4 +29,8 @@ def create_app(config_name: str | None = None) -> Flask:
     from .api.health.routes import blp as health_blp
 
     smorest_api.register_blueprint(health_blp)
+
+    from .cli import ingest_cli
+
+    app.cli.add_command(ingest_cli)
     return app
