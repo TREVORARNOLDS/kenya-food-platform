@@ -25,6 +25,7 @@ def create_app(config_name: str | None = None) -> Flask:
     smorest_api.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
+    from . import models  # noqa: F401  (registers models with SQLAlchemy/Alembic)
     from .api.health.routes import blp as health_blp
 
     smorest_api.register_blueprint(health_blp)
