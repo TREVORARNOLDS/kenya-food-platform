@@ -1,7 +1,13 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint
 
-from app.schemas.analytics import TrendQuerySchema, TrendSchema, VolatilitySchema
+from app.schemas.analytics import (
+    CompareQuerySchema,
+    CompareSchema,
+    TrendQuerySchema,
+    TrendSchema,
+    VolatilitySchema,
+)
 from app.schemas.prices import PaginatedPriceSchema, PriceQuerySchema
 from app.services import analytics_service, price_service
 
@@ -33,3 +39,12 @@ class PriceVolatility(MethodView):
     def get(self, args):
         """Volatility measures for one commodity's monthly average price."""
         return analytics_service.price_volatility(**args)
+
+
+@blp.route("/compare/")
+class PriceCompare(MethodView):
+    @blp.arguments(CompareQuerySchema, location="query")
+    @blp.response(200, CompareSchema)
+    def get(self, args):
+        """Rank counties or markets by average price for one commodity in one unit."""
+        return analytics_service.compare_regions(**args)

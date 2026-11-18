@@ -58,7 +58,8 @@ export default function TrendsPage() {
   }, []);
 
   // Default to the first commodity in the list until the user picks one
-  const commodityId = filters.commodity || (commodities[0] ? String(commodities[0].id) : "");
+  const defaultCommodity = commodities.find((c) => c.name === "Maize") ?? commodities[0];
+  const commodityId = filters.commodity || (defaultCommodity ? String(defaultCommodity.id) : "");
 
   const qs = useMemo(() => {
     if (!commodityId) return "";

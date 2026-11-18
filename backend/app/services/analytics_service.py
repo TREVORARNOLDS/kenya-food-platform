@@ -1,8 +1,10 @@
+from datetime import timedelta
+
 from sqlalchemy import Date, DateTime, cast, func, literal_column, select
 
 from app.analytics.volatility import volatility_stats
 from app.extensions import db
-from app.models import Market, PriceObservation
+from app.models import County, Market, PriceObservation
 
 
 def _conditions(commodity_id, price_type, market_id, date_from, date_to) -> list:
@@ -99,3 +101,96 @@ def price_volatility(**filters) -> dict:
         "price_type": trend["price_type"],
         "stats": volatility_stats(series),
     }
+
+
+DEFAULT_COMPARE_WINDOW_DAYS = 90
+
+
+def compare_regions(
+    commodity_id,
+    unit=None,
+    price_type="retail",
+    group_by="county",
+    date_from=None,
+    date_to=None,
+    limit=50,
+) -> dict:
+    """Rank counties or markets by average price for one commodity in one unit.
+
+    Without date_from, the window is the 90 days before the latest observation.
+    """
+    conditions = _conditions(commodity_id, price_type, None, date_from, date_to)
+
+    unit_stmt = (
+        select(PriceObservation.unit)
+        .where(*conditions)
+        .group_by(PriceObservation.unit)
+        .order_by(func.count().desc(), PriceObservation.unit)
+    )
+    available = list(db.session.scalars(unit_stmt))
+    chosen = unit or (available[0] if available else None)
+
+    result = {
+        "commodity_id": commodity_id,
+        "unit": chosen,
+        "price_type": price_type,
+        "group_by": group_by,
+        "available_units": available,
+        "date_from": None,
+        "date_to": None,
+        "overall_avg_price": None,
+        "items": [],
+    }
+    if chosen is None:
+        return result
+
+    conditions.append(PriceObservation.unit == chosen)
+    latest = db.session.scalar(select(func.max(PriceObservation.observed_on)).where(*conditions))
+    if latest is None:
+        return result
+
+    if date_from is None:
+        date_from = latest - timedelta(days=DEFAULT_COMPARE_WINDOW_DAYS)
+        conditions.append(PriceObservation.observed_on >= date_from)
+    result["date_from"] = date_from
+    result["date_to"] = date_to or latest
+
+    if group_by == "market":
+        columns = [Market.id.label("id"), Market.name.label("name"), County.name.label("county_name")]
+        grouping = [Market.id, Market.name, County.name]
+    else:
+        columns = [County.id.label("id"), County.name.label("name")]
+        grouping = [County.id, County.name]
+
+    avg_price = func.avg(PriceObservation.price)
+    stmt = (
+        select(
+            *columns,
+            avg_price.label("avg_price"),
+            func.min(PriceObservation.price).label("min_price"),
+            func.max(PriceObservation.price).label("max_price"),
+            func.count().label("observations"),
+        )
+        .select_from(PriceObservation)
+        .join(Market, Market.id == PriceObservation.market_id)
+        .join(County, County.id == Market.county_id)
+        .where(*conditions)
+        .group_by(*grouping)
+        .order_by(avg_price.desc(), columns[1])
+        .limit(limit)
+    )
+    result["items"] = [
+        {
+            "id": row.id,
+            "name": row.name,
+            "county_name": getattr(row, "county_name", None),
+            "avg_price": float(row.avg_price),
+            "min_price": float(row.min_price),
+            "max_price": float(row.max_price),
+            "observations": row.observations,
+        }
+        for row in db.session.execute(stmt)
+    ]
+    overall = db.session.scalar(select(func.avg(PriceObservation.price)).where(*conditions))
+    result["overall_avg_price"] = None if overall is None else float(overall)
+    return result
